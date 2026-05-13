@@ -1,0 +1,8 @@
+{
+  "name": "OdoLogger Mobile",
+  "description": "Android-optimized vehicle travel log app to capture odometer inputs and camera pictures.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}

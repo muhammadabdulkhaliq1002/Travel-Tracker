@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["driver", "admin"] },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "timestamp" },
+        "lastLoginAt": { "type": "timestamp" }
+      },
+      "required": ["email", "role", "isActive", "createdAt", "lastLoginAt"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "A vehicle travel log entry",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user who logged the trip" },
+        "userEmail": { "type": "string" },
+        "userDisplayName": { "type": "string" },
+        "date": { "type": "string" },
+        "vehicleNumber": { "type": "string" },
+        "travellingFrom": { "type": "string" },
+        "travellingTo": { "type": "string" },
+        "startingOdometer": { "type": "number" },
+        "endingOdometer": { "type": "number" },
+        "distanceTravelled": { "type": "number" },
+        "perKmRate": { "type": "number" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Rejected"] },
+        "purposeOfTravel": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "remarks": { "type": "string" },
+        "startOdometerImageUri": { "type": "string", "description": "Local mock or remote URI of Starting Odometer photo" },
+        "endOdometerImageUri": { "type": "string", "description": "Local mock or remote URI of Ending Odometer photo" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "userEmail", "date", "vehicleNumber", "travellingFrom", "travellingTo", "startingOdometer", "endingOdometer", "distanceTravelled", "perKmRate", "amount", "status", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles, roles, and status."
+    },
+    "/trips/{tripId}": {
+      "schema": { "$ref": "#/entities/Trip" },
+      "description": "Stores user travel logs."
+    }
+  }
+}

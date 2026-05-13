@@ -1,0 +1,191 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    match /test/connection {
+      allow read: if true;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      // In development environments with emulators or test accounts, email_verified can sometimes be false.
+      // But adhering to the pillar: we strictly mandate email verification unless we know it's missing.
+      // We will assume Google Auth sets this to true.
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      // Bootstrap admin using request.auth.token.email or by reading from the users collection
+      return isVerified() && (
+        request.auth.token.email == 'ca.abdulkhaliq@gmail.com' 
+        || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner() {
+      return isVerified() && existing().userId == request.auth.uid;
+    }
+
+    function existingUserIsManagerOf(targetUserId) {
+      return exists(/databases/$(database)/documents/users/$(targetUserId)) &&
+             get(/databases/$(database)/documents/users/$(targetUserId)).data.managerId == request.auth.uid;
+    }
+
+    // --- USERS VALIDATION ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'role', 'isActive', 'createdAt', 'lastLoginAt'])
+        && data.email is string && data.email.size() <= 200
+        && data.role in ['driver', 'employee', 'manager', 'viewer', 'admin']
+        && data.isActive is bool
+        && data.createdAt is timestamp
+        && data.lastLoginAt is timestamp
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 150))
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000))
+        && (!('managerId' in data) || data.managerId == null || (data.managerId is string && data.managerId.size() <= 128));
+    }
+    
+    function userDataSizeOkOnCreate(data) {
+      return data.keys().size() >= 5 && data.keys().size() <= 8;
+    }
+
+    match /users/{userId} {
+      // List: Admins can list all. Managers can list to find their employees. Employees can list all to find managers for assignment maybe? Actually, we'll let verified users list all for the sake of the AdminConsole selecting managers. BUT strictly:
+      allow list: if isVerified();
+      
+      // Get: Users can read their own profile, Admins can read any. Managers can read their employees.
+      allow get: if isVerified() && isValidId(userId) && (userId == request.auth.uid || isAdmin() || existingUserIsManagerOf(userId));
+      
+      // Create: Users can create their own profile. Admins can create profiles.
+      allow create: if isVerified()
+        && isValidId(userId)
+        && (userId == request.auth.uid || isAdmin())
+        && userDataSizeOkOnCreate(incoming())
+        && isValidUser(incoming())
+        && (!('createdAt' in incoming()) || incoming().createdAt == request.time)
+        && (!('lastLoginAt' in incoming()) || incoming().lastLoginAt == request.time)
+        && (incoming().role == 'driver' || incoming().role == 'employee' || isAdmin());
+
+      // Update:
+      // Users can update their lastLoginAt, displayName, photoURL.
+      // Admins can update any field.
+      allow update: if isVerified()
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().createdAt == existing().get('createdAt', incoming().createdAt)
+        && incoming().email == existing().get('email', incoming().email)
+        && (
+          isAdmin() || 
+          (
+            userId == request.auth.uid 
+            && incoming().role == existing().role // Cannot elevate privileges
+            && incoming().isActive == existing().isActive // Cannot change active status
+            && incoming().get('managerId', null) == existing().get('managerId', null)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastLoginAt'])
+          )
+        );
+
+      allow delete: if isVerified() && (isAdmin() || existing().email == request.auth.token.email);
+    }
+
+    // --- TRIPS VALIDATION ---
+    function isValidTrip(data) {
+      return data.keys().hasAll(['userId', 'date', 'vehicleNumber', 'travellingFrom', 'travellingTo', 'startingOdometer', 'endingOdometer'])
+        && data.userId is string 
+        && (!('userEmail' in data) || (data.userEmail is string && data.userEmail.size() <= 200))
+        && (!('userDisplayName' in data) || (data.userDisplayName is string && data.userDisplayName.size() <= 150))
+        && data.date is string && data.date.size() <= 50
+        && data.vehicleNumber is string && data.vehicleNumber.size() <= 50
+        && data.travellingFrom is string && data.travellingFrom.size() <= 200
+        && data.travellingTo is string && data.travellingTo.size() <= 200
+        && data.startingOdometer is number
+        && data.endingOdometer is number
+        && (!('distanceTravelled' in data) || data.distanceTravelled is number)
+        && (!('perKmRate' in data) || data.perKmRate is number)
+        && (!('amount' in data) || data.amount is number)
+        && (!('status' in data) || data.status in ['Pending', 'Approved', 'Rejected'])
+        && (!('createdAt' in data) || data.createdAt is timestamp)
+        && (!('updatedAt' in data) || data.updatedAt is timestamp)
+        && (!('purposeOfTravel' in data) || (data.purposeOfTravel is string && data.purposeOfTravel.size() <= 500))
+        && (!('approvedBy' in data) || (data.approvedBy is string && data.approvedBy.size() <= 150))
+        && (!('remarks' in data) || (data.remarks is string && data.remarks.size() <= 1000))
+        && (!('startOdometerImageUri' in data) || (data.startOdometerImageUri is string && data.startOdometerImageUri.size() <= 400000))
+        && (!('endOdometerImageUri' in data) || (data.endOdometerImageUri is string && data.endOdometerImageUri.size() <= 400000));
+    }
+
+    function tripDataSizeOkOnCreate(data) {
+      return data.keys().size() >= 7 && data.keys().size() <= 20;
+    }
+
+    match /trips/{tripId} {
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isAdmin() || existingUserIsManagerOf(resource.data.userId));
+      
+      allow get: if isVerified() && isValidId(tripId) && (isOwner() || isAdmin() || existingUserIsManagerOf(resource.data.userId));
+      
+      allow create: if isVerified()
+        && isValidId(tripId)
+        && tripDataSizeOkOnCreate(incoming())
+        && isValidTrip(incoming())
+        && (incoming().userId == request.auth.uid || isAdmin())
+        && (!('createdAt' in incoming()) || incoming().createdAt == request.time)
+        && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time);
+
+      allow update: if isVerified()
+        && isValidId(tripId)
+        && (isOwner() || isAdmin() || existingUserIsManagerOf(existing().userId))
+        && isValidTrip(incoming())
+        && incoming().userId == existing().userId
+        && (!('createdAt' in incoming()) || incoming().createdAt == existing().get('createdAt', incoming().createdAt))
+        && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time)
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'date', 'vehicleNumber', 'travellingFrom', 'travellingTo', 
+            'startingOdometer', 'endingOdometer', 'distanceTravelled', 
+            'perKmRate', 'amount', 'status', 'purposeOfTravel', 'approvedBy', 
+            'remarks', 'startOdometerImageUri', 'endOdometerImageUri', 
+            'updatedAt'
+          ])
+        );
+
+      allow delete: if isVerified() && isValidId(tripId) && (isOwner() || isAdmin());
+    }
+    // --- NOTIFICATIONS VALIDATION ---
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'tripId', 'message', 'read', 'createdAt'])
+        && data.userId is string && data.userId.size() <= 128
+        && data.tripId is string && data.tripId.size() <= 128
+        && data.message is string && data.message.size() <= 500
+        && data.read is bool
+        && data.createdAt is timestamp
+        && (!('link' in data) || (data.link is string && data.link.size() <= 500));
+    }
+
+    match /notifications/{notificationId} {
+      allow list: if isVerified() && resource.data.userId == request.auth.uid;
+      allow get: if isVerified() && isValidId(notificationId) && resource.data.userId == request.auth.uid;
+      allow create: if isVerified() && isValidId(notificationId) && isValidNotification(incoming()) && incoming().createdAt == request.time;
+      allow update: if isVerified() && isValidId(notificationId) && existing().userId == request.auth.uid 
+        && isValidNotification(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isVerified() && isValidId(notificationId) && existing().userId == request.auth.uid;
+    }
+  }
+}
