@@ -33,6 +33,9 @@ export function NewTrip() {
   const [endImg, setEndImg] = useState<string | null>(null);
   const [processingImage, setProcessingImage] = useState<'start' | 'end' | null>(null);
   const [previewModal, setPreviewModal] = useState<string | null>(null);
+  const [startLocation, setStartLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [endLocation, setEndLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [fetchingLocation, setFetchingLocation] = useState<'start' | 'end' | null>(null);
 
   const isEdit = !!id;
 
@@ -77,6 +80,8 @@ export function NewTrip() {
             });
             setStartImg(data.startOdometerImageUri || null);
             setEndImg(data.endOdometerImageUri || null);
+            setStartLocation(data.startLocation || null);
+            setEndLocation(data.endLocation || null);
           } else {
             alert("Trip record not found.");
             navigate('/');
@@ -90,6 +95,32 @@ export function NewTrip() {
       fetchTrip();
     }
   }, [id, reset, navigate]);
+
+  const handleLocationFetch = (type: 'start' | 'end') => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+    setFetchingLocation(type);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        if (type === 'start') {
+          setStartLocation({ lat: latitude, lng: longitude });
+        } else {
+          setEndLocation({ lat: latitude, lng: longitude });
+        }
+        setFetchingLocation(null);
+      },
+      (error) => {
+        let errorMsg = 'Error fetching location';
+        if (error.code === error.PERMISSION_DENIED) errorMsg = 'Location permission denied. Please allow location access in your browser settings.';
+        alert(errorMsg);
+        setFetchingLocation(null);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const handleImageCapture = async (e: React.ChangeEvent<HTMLInputElement>, type: 'start' | 'end') => {
     const file = e.target.files?.[0];
@@ -136,6 +167,8 @@ export function NewTrip() {
         remarks: data.remarks,
         startOdometerImageUri: startImg || '',
         endOdometerImageUri: endImg || '',
+        startLocation: startLocation,
+        endLocation: endLocation,
         updatedAt: serverTimestamp()
       };
 
@@ -235,10 +268,36 @@ export function NewTrip() {
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Start Reading</label>
                   <input type="number" {...register('startingOdometer', { required: true })} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                  <div className="mt-2 text-left">
+                    {startLocation ? (
+                       <div className="flex items-center text-[10px] text-green-600 font-medium">
+                         <MapPin size={12} className="mr-1" />
+                         Location saved ({startLocation.lat.toFixed(4)}, {startLocation.lng.toFixed(4)})
+                       </div>
+                    ) : (
+                      <button type="button" onClick={() => handleLocationFetch('start')} disabled={fetchingLocation === 'start'} className="flex items-center text-[10px] text-blue-600 font-medium hover:underline focus:outline-none">
+                        {fetchingLocation === 'start' ? <Loader2 size={12} className="mr-1 animate-spin" /> : <MapPin size={12} className="mr-1" />}
+                        Fetch Start Location
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">End Reading</label>
                   <input type="number" {...register('endingOdometer', { required: true })} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                  <div className="mt-2 text-left">
+                    {endLocation ? (
+                       <div className="flex items-center text-[10px] text-green-600 font-medium">
+                         <MapPin size={12} className="mr-1" />
+                         Location saved ({endLocation.lat.toFixed(4)}, {endLocation.lng.toFixed(4)})
+                       </div>
+                    ) : (
+                      <button type="button" onClick={() => handleLocationFetch('end')} disabled={fetchingLocation === 'end'} className="flex items-center text-[10px] text-blue-600 font-medium hover:underline focus:outline-none">
+                        {fetchingLocation === 'end' ? <Loader2 size={12} className="mr-1 animate-spin" /> : <MapPin size={12} className="mr-1" />}
+                        Fetch End Location
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
