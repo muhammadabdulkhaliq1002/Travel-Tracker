@@ -96,7 +96,7 @@ export function NewTrip() {
     }
   }, [id, reset, navigate]);
 
-  const handleLocationFetch = (type: 'start' | 'end', populateField?: string) => {
+  const handleLocationFetch = (type: 'start' | 'end', populateField?: 'travellingFrom' | 'travellingTo') => {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported by your browser');
       return;
@@ -107,35 +107,37 @@ export function NewTrip() {
         const { latitude, longitude } = position.coords;
         if (type === 'start') {
           setStartLocation({ lat: latitude, lng: longitude });
-          if (populateField === 'travellingFrom') {
-            try {
-              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-              if (res.ok) {
-                const data = await res.json();
-                if (data && data.display_name) {
-                  // Keep it concise, e.g. city/suburb if available, else display_name
-                  const address = data.address?.suburb || data.address?.city || data.address?.town || data.address?.village || data.display_name.split(',').slice(0, 2).join(',');
-                  setValue('travellingFrom', address);
-                }
-              } else {
-                setValue('travellingFrom', `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-              }
-            } catch (e) {
-              setValue('travellingFrom', `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-            }
-          }
         } else {
           setEndLocation({ lat: latitude, lng: longitude });
+        }
+
+        if (populateField) {
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.display_name) {
+                const address = data.address?.suburb || data.address?.city || data.address?.town || data.address?.village || data.display_name.split(',').slice(0, 2).join(',');
+                setValue(populateField, address);
+              }
+            } else {
+              setValue(populateField, `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+            }
+          } catch (e) {
+            setValue(populateField, `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          }
         }
         setFetchingLocation(null);
       },
       (error) => {
-        let errorMsg = 'Error fetching location';
+        let errorMsg = `Error fetching location: ${error.message}`;
         if (error.code === error.PERMISSION_DENIED) errorMsg = 'Location permission denied. Please allow location access in your browser settings.';
+        else if (error.code === error.TIMEOUT) errorMsg = 'Location request timed out. Please try again.';
+        else if (error.code === error.POSITION_UNAVAILABLE) errorMsg = 'Location information is unavailable. Please check your device settings.';
         alert(errorMsg);
         setFetchingLocation(null);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: false, timeout: 30000, maximumAge: 60000 }
     );
   };
 
@@ -278,7 +280,12 @@ export function NewTrip() {
               
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">To</label>
-                <input type="text" placeholder="Ulsoor" {...register('travellingTo', { required: true })} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                <div className="relative">
+                  <input type="text" placeholder="Ulsoor" {...register('travellingTo', { required: true })} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition pr-10" />
+                  <button type="button" onClick={() => handleLocationFetch('end', 'travellingTo')} disabled={fetchingLocation === 'end'} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Use current location">
+                    {fetchingLocation === 'end' ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
+                  </button>
+                </div>
               </div>
 
               <div>

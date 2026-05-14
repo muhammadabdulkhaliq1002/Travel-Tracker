@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from './AuthProvider';
-import { Plus, Car, Calendar, MapPin, ChevronRight, LogOut, Search, Download, Map as MapIcon, Users, ZoomIn, ZoomOut, ChevronLeft, RotateCcw, Edit2, CheckCircle2, XCircle, Loader2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Car, Calendar, MapPin, ChevronRight, LogOut, Search, Download, Map as MapIcon, Users, ZoomIn, ZoomOut, ChevronLeft, RotateCcw, Edit2, CheckCircle2, XCircle, Loader2, Trash2, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { TripMapModal } from './TripMap';
 import { Header } from './Header';
 import clsx from 'clsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export function TripsList() {
   const { user, logout, isAdmin, profile } = useAuth();
@@ -326,6 +328,71 @@ export function TripsList() {
     URL.revokeObjectURL(url);
   };
 
+  const generatePDF = () => {
+    if (filteredTrips.length === 0) return;
+
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(18);
+    doc.setTextColor(15, 23, 42); // slate-900
+    doc.text('Travel Logs Report', 14, 22);
+
+    // Summary
+    const totalTrips = filteredTrips.length;
+    const totalAmount = filteredTrips.reduce((sum, trip) => sum + (Number(trip.amount) || 0), 0);
+    const approvedCount = filteredTrips.filter(t => t.status === 'Approved').length;
+    const rejectedCount = filteredTrips.filter(t => t.status === 'Rejected').length;
+    const pendingCount = filteredTrips.filter(t => !t.status || t.status === 'Pending').length;
+
+    doc.setFontSize(11);
+    doc.setTextColor(100, 116, 139); // slate-500
+    doc.text(`Total Trips: ${totalTrips}`, 14, 32);
+    doc.text(`Total Amount: Rs ${totalAmount.toFixed(2)}`, 14, 38);
+    doc.text(`Status: ${approvedCount} Approved, ${rejectedCount} Rejected, ${pendingCount} Pending`, 14, 44);
+
+    // Table
+    const headers = [['Date', 'User', 'From', 'To', 'Distance', 'Amount', 'Status']];
+    const data = filteredTrips.map(trip => {
+      let tripDateStr = '';
+      try {
+        tripDateStr = format(new Date(trip.date || trip.createdAt?.toDate()), 'yyyy-MM-dd');
+      } catch (err) {
+        tripDateStr = '';
+      }
+      return [
+        tripDateStr,
+        trip.userEmail?.split('@')[0] || trip.userDisplayName || 'User',
+        trip.travellingFrom || '-',
+        trip.travellingTo || '-',
+        `${trip.distanceTravelled || 0} km`,
+        `Rs ${Number(trip.amount || 0).toFixed(2)}`,
+        trip.status || 'Pending'
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 52,
+      head: headers,
+      body: data,
+      theme: 'grid',
+      headStyles: { fillColor: [59, 130, 246] }, // blue-500
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 'auto' },
+        4: { cellWidth: 25 },
+        5: { cellWidth: 30 },
+        6: { cellWidth: 25 }
+      },
+      styles: { fontSize: 9, cellPadding: 3 }
+    });
+
+    const timestamp = format(new Date(), 'yyyyMMdd_HHmmss');
+    doc.save(`trips_report_${timestamp}.pdf`);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
         <Header />
@@ -411,11 +478,20 @@ export function TripsList() {
                   <button
                     onClick={exportToCSV}
                     disabled={filteredTrips.length === 0}
-                    className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors"
+                    className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors"
                     title="Export to CSV"
                   >
                     <Download size={16} />
-                    <span className="hidden sm:inline">Export</span>
+                    <span className="hidden sm:inline">CSV</span>
+                  </button>
+                  <button
+                    onClick={generatePDF}
+                    disabled={filteredTrips.length === 0}
+                    className="flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors"
+                    title="Export to PDF"
+                  >
+                    <FileText size={16} />
+                    <span className="hidden sm:inline">PDF</span>
                   </button>
                 </div>
               )}
