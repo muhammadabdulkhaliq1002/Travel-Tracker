@@ -194,27 +194,27 @@ export function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative">
+    <div className="min-h-screen flex flex-col font-sans relative">
       <Header />
 
       <main className="flex-1 p-4 sm:p-8 max-w-6xl mx-auto w-full flex flex-col">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             {isAdmin && (
-              <Link to="/admin" className="px-4 py-2 bg-white text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg font-bold text-sm shadow-sm transition-colors">
+              <Link to="/admin" className="px-3 sm:px-4 py-2 bg-white/50 backdrop-blur-sm text-slate-800 hover:bg-white/70 border border-white/60 rounded-lg font-bold text-sm shadow-sm transition-colors text-center flex-1 sm:flex-none">
                 Users
               </Link>
             )}
-            <Link to="/" className="px-4 py-2 bg-white text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg font-bold text-sm shadow-sm transition-colors">
+            <Link to="/" className="px-3 sm:px-4 py-2 bg-white/50 backdrop-blur-sm text-slate-800 hover:bg-white/70 border border-white/60 rounded-lg font-bold text-sm shadow-sm transition-colors text-center flex-1 sm:flex-none">
               Trips Data
             </Link>
-            <div className="px-4 py-2 bg-slate-900 text-white rounded-lg font-bold text-sm shadow-sm">
+            <div className="px-3 sm:px-4 py-2 bg-slate-900/80 backdrop-blur-md text-white rounded-lg font-bold text-sm shadow-sm border border-slate-700/50 text-center flex-1 sm:flex-none">
               Dashboard
             </div>
           </div>
           <button 
             onClick={generatePDF}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-blue-700 transition flex items-center gap-2 w-max"
+            className="px-4 py-2 bg-blue-600/90 backdrop-blur-md text-white rounded-lg font-bold text-sm shadow-sm hover:bg-blue-700 transition flex items-center gap-2 w-max"
           >
             <Download size={16} /> Export PDF
           </button>
@@ -231,40 +231,40 @@ export function AdminDashboard() {
             
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
+              <div className="bg-white/40 backdrop-blur-xl p-6 rounded-xl border border-white/60 shadow-xl flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/50 border border-white/60 text-blue-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm">
                   <UsersIcon size={24} />
                 </div>
                 <div>
-                  <div className="text-slate-500 text-sm font-semibold uppercase tracking-wider mb-1">Users</div>
+                  <div className="text-slate-600 text-sm font-semibold uppercase tracking-wider mb-1">Users</div>
                   <div className="text-2xl font-bold text-slate-800 tracking-tight">{usersCount}</div>
-                  <div className="text-xs text-slate-500 mt-1"><span className="text-emerald-600 font-bold">{activeUsersCount}</span> active</div>
+                  <div className="text-xs text-slate-600 mt-1"><span className="text-emerald-600 font-bold">{activeUsersCount}</span> active</div>
                 </div>
               </div>
               
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0">
+              <div className="bg-white/40 backdrop-blur-xl p-6 rounded-xl border border-white/60 shadow-xl flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/50 border border-white/60 text-indigo-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm">
                   <MapPin size={24} />
                 </div>
                 <div>
-                  <div className="text-slate-500 text-sm font-semibold uppercase tracking-wider mb-1">Total Trips</div>
+                  <div className="text-slate-600 text-sm font-semibold uppercase tracking-wider mb-1">Total Trips</div>
                   <div className="text-2xl font-bold text-slate-800 tracking-tight">{totalTrips}</div>
-                  <div className="text-xs text-slate-500 mt-1">Logged by all users</div>
+                  <div className="text-xs text-slate-600 mt-1">Logged by all users</div>
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center shrink-0">
+              <div className="bg-white/40 backdrop-blur-xl p-6 rounded-xl border border-white/60 shadow-xl flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/50 border border-white/60 text-emerald-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm">
                   <IndianRupee size={24} />
                 </div>
                 <div>
-                  <div className="text-slate-500 text-sm font-semibold uppercase tracking-wider mb-1">Total Value</div>
+                  <div className="text-slate-600 text-sm font-semibold uppercase tracking-wider mb-1">Total Value</div>
                   <div className="text-2xl font-bold text-slate-800 tracking-tight">₹{totalAmount.toFixed(2)}</div>
-                  <div className="text-xs text-slate-500 mt-1">Overall amount</div>
+                  <div className="text-xs text-slate-600 mt-1">Overall amount</div>
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-2 justify-center">
+              <div className="bg-white/40 backdrop-blur-xl p-6 rounded-xl border border-white/60 shadow-xl flex flex-col gap-2 justify-center">
                 <div className="flex items-center justify-between text-amber-600">
                   <div className="flex items-center gap-2 font-bold text-sm">
                     <Clock size={16} /> Pending
@@ -289,7 +289,7 @@ export function AdminDashboard() {
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+              <div className="bg-white/40 backdrop-blur-xl p-6 rounded-xl border border-white/60 shadow-xl">
                 <h3 className="font-bold text-slate-800 mb-6 shrink-0 text-lg tracking-tight">Trip Status Breakdown</h3>
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -314,7 +314,7 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+              <div className="bg-white/40 backdrop-blur-xl p-6 rounded-xl border border-white/60 shadow-xl">
                 <h3 className="font-bold text-slate-800 mb-6 shrink-0 text-lg tracking-tight">Top 5 Users by Trips</h3>
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">

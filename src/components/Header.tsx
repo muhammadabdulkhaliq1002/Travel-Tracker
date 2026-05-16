@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, LogOut, Bell } from 'lucide-react';
+import { Users, LogOut, Bell, Moon, Sun } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from 'firebase/firestore';
@@ -13,6 +13,21 @@ export function Header() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('darkMode') === 'true' || 
+           (!('darkMode' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('darkMode', 'true');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('darkMode', 'false');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     if (!user) return;
@@ -64,13 +79,13 @@ export function Header() {
   const unreadCount = notifications.filter(n => !n.read).length;
   
   return (
-    <div className="sticky top-0 z-[60] w-full shrink-0 flex flex-col shadow-sm">
-      <div className="bg-slate-900 text-slate-300 text-[10px] sm:text-xs font-bold py-1 px-4 sm:px-8 text-center tracking-widest uppercase">
+    <div className="sticky top-0 z-[60] w-full shrink-0 flex flex-col shadow-sm backdrop-blur-md bg-white/40 border-b border-white/60">
+      <div className="bg-slate-900/80 backdrop-blur-md text-slate-300 text-[10px] sm:text-xs font-bold py-1 px-4 sm:px-8 text-center tracking-widest uppercase">
         Goodfarmer Food Concepts Private Limited
       </div>
-      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 relative">
+      <header className="h-16 flex items-center justify-between px-4 sm:px-8 relative">
         <div className="flex items-center gap-2">
-          <Link to="/" className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-900/20">
+          <Link to="/" className="w-8 h-8 rounded-lg bg-blue-600/90 flex items-center justify-center text-white font-bold shadow-md shadow-blue-900/20 backdrop-blur-sm">
             T
           </Link>
           <Link to="/" className="text-slate-800 font-semibold text-lg hidden sm:block">Travel Tracker</Link>
@@ -90,8 +105,8 @@ export function Header() {
              </button>
 
              {showNotifications && (
-               <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
-                 <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+               <div className="absolute right-0 mt-2 w-80 bg-white/80 backdrop-blur-xl border border-white/60 rounded-xl shadow-xl z-50 overflow-hidden">
+                 <div className="px-4 py-3 border-b border-white/40 bg-white/50 flex justify-between items-center">
                    <h3 className="font-semibold text-slate-800 text-sm">Notifications</h3>
                    {unreadCount > 0 && (
                      <span className="text-xs font-medium bg-red-100 text-red-600 px-2 py-0.5 rounded-full">{unreadCount} new</span>
@@ -134,15 +149,18 @@ export function Header() {
            </div>
          )}
          
-         <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border border-slate-200 hidden sm:block">
+         <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border border-slate-200 dark:border-slate-700 hidden sm:block">
            {user?.email}
          </span>
          {profile?.role === 'manager' && (
-           <span className="hidden sm:flex px-3 py-1.5 items-center gap-1.5 text-amber-600 font-semibold text-sm bg-amber-50 border border-amber-100 rounded-lg items-center">
+           <span className="hidden sm:flex px-3 py-1.5 items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold text-sm bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800/50 rounded-lg items-center">
              <Users size={16} /> Manager View
            </span>
          )}
-         <button onClick={logout} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition" title="Log Out">
+         <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition" title="Toggle Theme">
+           {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+         </button>
+         <button onClick={logout} className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition" title="Log Out">
            <LogOut size={20} />
          </button>
        </div>

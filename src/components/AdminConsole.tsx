@@ -142,19 +142,19 @@ export function AdminConsole() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative">
+    <div className="min-h-screen flex flex-col font-sans relative">
       <Header />
 
       <main className="flex-1 p-4 sm:p-8 max-w-6xl mx-auto w-full flex flex-col">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            <Link to="/admin" className="px-4 py-2 bg-slate-900 text-white rounded-lg font-bold text-sm shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <Link to="/admin" className="px-3 sm:px-4 py-2 bg-slate-900/80 backdrop-blur-md text-white rounded-lg font-bold text-sm shadow-sm border border-slate-700/50 text-center flex-1 sm:flex-none">
               Users
             </Link>
-            <Link to="/" className="px-4 py-2 bg-white text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg font-bold text-sm shadow-sm transition-colors">
+            <Link to="/" className="px-3 sm:px-4 py-2 bg-white/50 backdrop-blur-sm text-slate-800 hover:bg-white/70 border border-white/60 rounded-lg font-bold text-sm shadow-sm transition-colors text-center flex-1 sm:flex-none">
               Trips Data
             </Link>
-            <Link to="/admin/dashboard" className="px-4 py-2 bg-white text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg font-bold text-sm shadow-sm transition-colors">
+            <Link to="/admin/dashboard" className="px-3 sm:px-4 py-2 bg-white/50 backdrop-blur-sm text-slate-800 hover:bg-white/70 border border-white/60 rounded-lg font-bold text-sm shadow-sm transition-colors text-center flex-1 sm:flex-none">
               Dashboard
             </Link>
           </div>
@@ -170,7 +170,7 @@ export function AdminConsole() {
               <button 
                 onClick={() => fileInputRef.current?.click()} 
                 disabled={uploadingBulk}
-                className="px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-lg font-bold text-sm shadow-sm hover:bg-slate-50 transition flex items-center gap-2 w-max disabled:opacity-50"
+                className="px-4 py-2 bg-white/50 backdrop-blur-sm text-slate-800 hover:bg-white/70 border border-white/60 rounded-lg font-bold text-sm shadow-sm transition flex items-center gap-2 w-max disabled:opacity-50"
               >
                 <Upload size={16} /> {uploadingBulk ? 'Uploading...' : 'Bulk Invite (CSV)'}
               </button>
@@ -181,15 +181,15 @@ export function AdminConsole() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-4 border-b border-slate-100 bg-slate-50">
+        <div className="bg-white/40 backdrop-blur-xl rounded-xl shadow-xl border border-white/60 overflow-hidden">
+          <div className="p-4 border-b border-white/40 bg-white/30">
             <h2 className="font-bold text-slate-800">User Management</h2>
-            <p className="text-sm text-slate-500">Manage user roles and access to the app.</p>
+            <p className="text-sm text-slate-600">Manage user roles and access to the app.</p>
           </div>
           
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[700px]">
-              <thead className="bg-white text-[11px] uppercase text-slate-500 font-bold border-b border-slate-100">
+              <thead className="bg-white/30 text-[11px] uppercase text-slate-700 font-bold border-b border-white/40">
                 <tr>
                   <th className="px-6 py-4">User</th>
                   <th className="px-6 py-4">Role</th>
@@ -198,17 +198,17 @@ export function AdminConsole() {
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="text-sm text-slate-700 divide-y divide-slate-100">
+              <tbody className="text-sm text-slate-800 divide-y divide-white/20">
                 {users.map(u => {
                   const isSelf = user?.uid === u.id || user?.email === u.email;
                   return (
-                    <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={u.id} className="hover:bg-white/40 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           {u.photoURL ? (
                             <img src={u.photoURL} alt="" className="w-10 h-10 rounded-full border border-slate-200" />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-bold text-lg">
+                            <div className="w-10 h-10 rounded-full bg-white/50 border border-white/60 shadow-sm flex items-center justify-center text-slate-600 font-bold text-lg">
                               {u.displayName?.charAt(0) || u.email?.charAt(0)}
                             </div>
                           )}
@@ -251,7 +251,7 @@ export function AdminConsole() {
                       <td className="px-6 py-4 text-right space-x-2">
                         <button
                           onClick={() => openEditModal(u)}
-                          className="p-2 rounded-lg border bg-white border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+                          className="p-2 rounded-lg border bg-white/50 backdrop-blur-sm border-white/60 text-slate-700 hover:bg-white/70 transition-colors shadow-sm"
                           title="Edit User"
                         >
                           <Edit2 size={16} />
@@ -262,8 +262,8 @@ export function AdminConsole() {
                               onClick={() => toggleActive(u.id, u.isActive)}
                               className={`p-2 rounded-lg border transition-colors shadow-sm flex items-center gap-1 text-xs font-bold ${
                                 u.isActive 
-                                  ? 'bg-white border-rose-200 text-rose-600 hover:bg-rose-50' 
-                                  : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                                  ? 'bg-white/50 border-rose-200/50 text-rose-600 hover:bg-rose-50/50' 
+                                  : 'bg-emerald-50/50 border-emerald-200/50 text-emerald-700 hover:bg-emerald-100/50'
                               }`}
                               title={u.isActive ? "Deactivate User" : "Approve / Activate User"}
                             >
@@ -284,13 +284,13 @@ export function AdminConsole() {
       {/* User Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+           <div className="bg-white/60 backdrop-blur-2xl border border-white/40 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-white/40 flex items-center justify-between bg-white/30">
                  <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
                     {modalMode === 'add' ? <Plus className="text-blue-600" size={20} /> : <Edit2 className="text-blue-600" size={20} />}
                     {modalMode === 'add' ? 'Invite User' : 'Edit User'}
                  </h3>
-                 <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                 <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-slate-800 p-1">
                     <XCircle size={20} />
                  </button>
               </div>
@@ -302,17 +302,17 @@ export function AdminConsole() {
                       placeholder="Email Address (Must be valid Google Account)"
                       required 
                       disabled={modalMode === 'edit'}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 disabled:opacity-50"
+                      className="w-full bg-white/50 border border-white/60 rounded-lg px-4 py-3 text-sm focus:outline-none focus:bg-white/80 focus:ring-2 disabled:opacity-50"
                       value={formData.email}
                       onChange={e => setFormData(f => ({...f, email: e.target.value}))}
                     />
-                    {modalMode === 'add' && <p className="text-[10px] text-slate-500 mt-1">Users will be verified upon first login with this email.</p>}
+                    {modalMode === 'add' && <p className="text-[10px] text-slate-600 mt-1">Users will be verified upon first login with this email.</p>}
                  </div>
                  <div>
                     <input 
                       type="text" 
                       placeholder="Display Name (Optional)"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2"
+                      className="w-full bg-white/50 border border-white/60 rounded-lg px-4 py-3 text-sm focus:outline-none focus:bg-white/80 focus:ring-2"
                       value={formData.displayName}
                       onChange={e => setFormData(f => ({...f, displayName: e.target.value}))}
                     />
@@ -323,7 +323,7 @@ export function AdminConsole() {
                        <label className="text-xs font-bold text-slate-700 uppercase">Role</label>
                        <select 
                          disabled={editingUser && (user?.uid === editingUser.id || user?.email === editingUser.email)}
-                         className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 disabled:opacity-50 appearance-none"
+                         className="w-full bg-white/50 border border-white/60 rounded-lg px-4 py-3 text-sm focus:outline-none focus:bg-white/80 focus:ring-2 disabled:opacity-50 appearance-none"
                          value={formData.role}
                          onChange={e => setFormData(f => ({...f, role: e.target.value}))}
                        >
@@ -338,7 +338,7 @@ export function AdminConsole() {
                         <div className="flex flex-col gap-1.5">
                            <label className="text-xs font-bold text-slate-700 uppercase">Manager</label>
                            <select 
-                             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 disabled:opacity-50 appearance-none"
+                             className="w-full bg-white/50 border border-white/60 rounded-lg px-4 py-3 text-sm focus:outline-none focus:bg-white/80 focus:ring-2 disabled:opacity-50 appearance-none"
                              value={formData.managerId}
                              onChange={e => setFormData(f => ({...f, managerId: e.target.value}))}
                            >
@@ -362,11 +362,11 @@ export function AdminConsole() {
                     </label>
                  </div>
                  
-                 <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
+                 <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-white/40">
                     <button 
                       type="button" 
                       onClick={() => setIsModalOpen(false)}
-                      className="px-4 py-2.5 rounded-lg text-slate-600 text-sm font-bold hover:bg-slate-50 transition"
+                      className="px-4 py-2.5 rounded-lg text-slate-700 text-sm font-bold hover:bg-white/50 transition-colors"
                     >
                        Cancel
                     </button>

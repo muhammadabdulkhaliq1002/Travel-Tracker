@@ -14,7 +14,7 @@ import autoTable from 'jspdf-autotable';
 export function TripsList() {
   const { user, logout, isAdmin, profile } = useAuth();
   const [trips, setTrips] = useState<any[]>([]);
-  const [managerEmployees, setManagerEmployees] = useState<string[]>([]);
+  const [managerEmployees, setManagerEmployees] = useState<{id: string, name: string, email: string}[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -22,6 +22,7 @@ export function TripsList() {
   const [userFilter, setUserFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [sortColumn, setSortColumn] = useState<'date' | 'vehicle' | 'purpose' | 'distance' | 'amount' | 'status'>('date');
   const [mapTrip, setMapTrip] = useState<any | null>(null);
   const [previewImages, setPreviewImages] = useState<{urls: string[], index: number} | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
@@ -187,8 +188,13 @@ export function TripsList() {
     if (profile.role === 'manager') {
        const empQuery = query(collection(db, 'users'), where('managerId', '==', user.uid));
        const unsubscribeEmps = onSnapshot(empQuery, (empSnap) => {
-         const empIds = empSnap.docs.map(d => d.id);
-         setManagerEmployees(empIds);
+         const emps = empSnap.docs.map(d => ({
+           id: d.id,
+           name: d.data().displayName || d.data().email || 'Unknown',
+           email: d.data().email || 'Unknown'
+         }));
+         setManagerEmployees(emps);
+         const empIds = emps.map(e => e.id);
          
          if (empIds.length > 0) {
            const chunks = [];
@@ -258,8 +264,15 @@ export function TripsList() {
     const matchesStatus = statusFilter === 'all' || trip.status === statusFilter || (!trip.status && statusFilter === 'Pending');
 
     // User filter
-    const tripUser = trip.userEmail || trip.userDisplayName || 'Unknown';
-    const matchesUser = userFilter === 'all' || tripUser === userFilter;
+    let matchesUser = true;
+    if (userFilter !== 'all') {
+      if (profile?.role === 'manager') {
+        matchesUser = trip.userId === userFilter;
+      } else {
+        const tripUser = trip.userEmail || trip.userDisplayName || 'Unknown';
+        matchesUser = tripUser === userFilter;
+      }
+    }
 
     // Date range filter
     let tripDateStr = trip.date;
@@ -276,9 +289,42 @@ export function TripsList() {
 
     return matchesSearch && matchesStatus && matchesDate && matchesUser;
   }).sort((a, b) => {
-    const aTime = a.date ? new Date(a.date).getTime() : (a.createdAt?.toMillis() || 0);
-    const bTime = b.date ? new Date(b.date).getTime() : (b.createdAt?.toMillis() || 0);
-    return sortOrder === 'asc' ? aTime - bTime : bTime - aTime;
+    let aVal: any = '';
+    let bVal: any = '';
+
+    switch (sortColumn) {
+      case 'date':
+        aVal = a.date ? new Date(a.date).getTime() : (a.createdAt?.toMillis() || 0);
+        bVal = b.date ? new Date(b.date).getTime() : (b.createdAt?.toMillis() || 0);
+        break;
+      case 'vehicle':
+        aVal = (a.vehicleNumber || '').toString().toLowerCase();
+        bVal = (b.vehicleNumber || '').toString().toLowerCase();
+        break;
+      case 'purpose':
+        aVal = (a.purposeOfTravel || '').toString().toLowerCase();
+        bVal = (b.purposeOfTravel || '').toString().toLowerCase();
+        break;
+      case 'distance':
+        aVal = Number(a.distanceTravelled) || 0;
+        bVal = Number(b.distanceTravelled) || 0;
+        break;
+      case 'amount':
+        aVal = Number(a.amount) || 0;
+        bVal = Number(b.amount) || 0;
+        break;
+      case 'status':
+        aVal = (a.status || 'Pending').toString().toLowerCase();
+        bVal = (b.status || 'Pending').toString().toLowerCase();
+        break;
+      default:
+        aVal = a.createdAt?.toMillis() || 0;
+        bVal = b.createdAt?.toMillis() || 0;
+    }
+
+    if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
   });
 
   const exportToCSV = () => {
@@ -394,21 +440,21 @@ export function TripsList() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen flex flex-col font-sans">
         <Header />
 
       <main className="flex-1 p-4 sm:p-8 max-w-6xl mx-auto w-full flex flex-col gap-6 overflow-y-auto">
           {(isAdmin || profile?.role === 'manager') && (
-            <div className="flex items-center gap-4 border-b border-slate-200 pb-4 mb-2">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 border-b border-slate-200/50 pb-4 mb-2">
               {isAdmin && (
-                <Link to="/admin" className="px-4 py-2 bg-white text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg font-bold text-sm shadow-sm transition-colors">
+                <Link to="/admin" className="px-3 sm:px-4 py-2 bg-white/50 backdrop-blur-sm text-slate-800 hover:bg-white/70 border border-white/60 rounded-lg font-bold text-sm shadow-sm transition-colors text-center flex-1 sm:flex-none">
                   Users
                 </Link>
               )}
-              <Link to="/" className="px-4 py-2 bg-slate-900 text-white rounded-lg font-bold text-sm shadow-sm">
+              <Link to="/" className="px-3 sm:px-4 py-2 bg-slate-900/80 backdrop-blur-md text-white rounded-lg font-bold text-sm shadow-sm border border-slate-700/50 text-center flex-1 sm:flex-none">
                 Trips Data
               </Link>
-              <Link to="/admin/dashboard" className="px-4 py-2 bg-white text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg font-bold text-sm shadow-sm transition-colors">
+              <Link to="/admin/dashboard" className="px-3 sm:px-4 py-2 bg-white/50 backdrop-blur-sm text-slate-800 hover:bg-white/70 border border-white/60 rounded-lg font-bold text-sm shadow-sm transition-colors text-center flex-1 sm:flex-none">
                 Dashboard
               </Link>
             </div>
@@ -456,20 +502,20 @@ export function TripsList() {
                     </div>
                   )}
                   <div className="relative flex-1 sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                     <input
                       type="text"
                       placeholder="Search..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-shadow"
+                      className="w-full bg-white/50 backdrop-blur-sm border border-white/60 rounded-lg py-2 pl-9 pr-3 text-sm text-slate-800 focus:outline-none focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 shadow-sm transition-shadow"
                     />
                   </div>
                   <button
                     onClick={() => setShowFilters(!showFilters)}
                     className={clsx(
                       "flex items-center gap-2 border px-3 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors",
-                      showFilters ? "bg-blue-50 border-blue-200 text-blue-600" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                      showFilters ? "bg-blue-50/80 border-blue-200 text-blue-600" : "bg-white/50 backdrop-blur-sm border-white/60 text-slate-800 hover:bg-white/70"
                     )}
                   >
                     <MapPin size={16} className={showFilters ? "text-blue-600" : "text-slate-400"} />
@@ -498,46 +544,49 @@ export function TripsList() {
             </div>
 
             {showFilters && (
-              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="bg-white/40 backdrop-blur-xl border border-white/60 rounded-xl p-4 shadow-xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Start Date</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Start Date</label>
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-white/50 border border-white/60 rounded-lg py-1.5 px-3 text-sm text-slate-800 focus:outline-none focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">End Date</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">End Date</label>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-white/50 border border-white/60 rounded-lg py-1.5 px-3 text-sm text-slate-800 focus:outline-none focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 transition-colors"
                   />
                 </div>
-                { (isAdmin || profile?.role === 'manager') && (
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">User</label>
-                    <select
-                      value={userFilter}
-                      onChange={(e) => setUserFilter(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="all">All Users</option>
-                      {uniqueUsers.map(u => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Status</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">User</label>
+                  <select
+                    value={userFilter}
+                    onChange={(e) => setUserFilter(e.target.value)}
+                    className="w-full bg-white/50 border border-white/60 rounded-lg py-1.5 px-3 text-sm text-slate-800 focus:outline-none focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 transition-colors"
+                  >
+                    <option value="all">All {profile?.role === 'manager' ? 'Employees' : 'Users'}</option>
+                    {profile?.role === 'manager' 
+                      ? managerEmployees.map(e => (
+                          <option key={e.id} value={e.id}>{e.name} {e.name !== e.email ? `(${e.email})` : ''}</option>
+                        ))
+                      : uniqueUsers.map(u => (
+                          <option key={u} value={u}>{u}</option>
+                        ))
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Status</label>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-white/50 border border-white/60 rounded-lg py-1.5 px-3 text-sm text-slate-800 focus:outline-none focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 transition-colors"
                   >
                     <option value="all">All Statuses</option>
                     <option value="Pending">Pending</option>
@@ -564,21 +613,21 @@ export function TripsList() {
           </div>
         
         {trips.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 shadow-sm">
-            <div className="bg-slate-100 inline-flex p-4 rounded-full mb-4">
-              <Car size={32} className="text-slate-400" />
+          <div className="text-center py-20 bg-white/40 backdrop-blur-xl rounded-2xl border border-white/60 shadow-xl">
+            <div className="bg-white/50 inline-flex p-4 rounded-full mb-4 border border-white/80 shadow-inner">
+              <Car size={32} className="text-slate-500" />
             </div>
-            <p className="text-slate-500 font-medium font-sans">No trips recorded yet.</p>
-            <p className="text-xs text-slate-400 mt-1">Tap the + button to add one.</p>
+            <p className="text-slate-600 font-medium font-sans">No trips recorded yet.</p>
+            <p className="text-xs text-slate-500 mt-1">Tap the + button to add one.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="bg-white/40 backdrop-blur-xl rounded-2xl border border-white/60 shadow-xl flex-1 flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-white/40 flex items-center justify-between">
               <h4 className="font-bold text-slate-800 hidden sm:block">Recent Submissions</h4>
             </div>
             <div className="flex-1 overflow-x-auto">
               <table className="w-full text-left min-w-[700px]">
-                <thead className="bg-slate-50 text-[11px] uppercase text-slate-500 font-bold border-b border-slate-100">
+                <thead className="bg-white/30 text-[11px] uppercase text-slate-700 font-bold border-b border-white/40">
                   <tr>
                     <th className="px-4 py-3 w-10 text-center">
                       <input 
@@ -592,33 +641,91 @@ export function TripsList() {
                       />
                     </th>
                     <th 
-                      className="px-6 py-3 cursor-pointer hover:bg-slate-200 group transition-colors select-none"
-                      onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                      className="px-6 py-3 cursor-pointer hover:bg-white/50 group transition-colors select-none"
+                      onClick={() => {
+                        if (sortColumn === 'date') setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                        else setSortColumn('date');
+                      }}
                     >
                       <div className="flex items-center gap-1">
                         Date
-                        {sortOrder === 'desc' ? <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600" /> : <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600" />}
+                        {sortColumn === 'date' && (sortOrder === 'desc' ? <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600" /> : <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600" />)}
                       </div>
                     </th>
-                    <th className="px-6 py-3">Vehicle</th>
-                    <th className="px-6 py-3">Purpose</th>
-                    <th className="px-6 py-3">Route & Distance</th>
-                    <th className="px-6 py-3">Amount</th>
-                    <th className="px-6 py-3">Status</th>
+                    <th 
+                      className="px-6 py-3 cursor-pointer hover:bg-white/50 group transition-colors select-none"
+                      onClick={() => {
+                        if (sortColumn === 'vehicle') setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                        else setSortColumn('vehicle');
+                      }}
+                    >
+                      <div className="flex items-center gap-1">
+                        Vehicle
+                        {sortColumn === 'vehicle' && (sortOrder === 'desc' ? <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600" /> : <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600" />)}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-3 cursor-pointer hover:bg-white/50 group transition-colors select-none"
+                      onClick={() => {
+                        if (sortColumn === 'purpose') setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                        else setSortColumn('purpose');
+                      }}
+                    >
+                      <div className="flex items-center gap-1">
+                        Purpose
+                        {sortColumn === 'purpose' && (sortOrder === 'desc' ? <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600" /> : <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600" />)}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-3 cursor-pointer hover:bg-white/50 group transition-colors select-none"
+                      onClick={() => {
+                        if (sortColumn === 'distance') setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                        else setSortColumn('distance');
+                      }}
+                    >
+                      <div className="flex items-center gap-1">
+                        Route & Distance
+                        {sortColumn === 'distance' && (sortOrder === 'desc' ? <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600" /> : <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600" />)}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-3 cursor-pointer hover:bg-white/50 group transition-colors select-none"
+                      onClick={() => {
+                        if (sortColumn === 'amount') setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                        else setSortColumn('amount');
+                      }}
+                    >
+                      <div className="flex items-center gap-1">
+                        Amount
+                        {sortColumn === 'amount' && (sortOrder === 'desc' ? <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600" /> : <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600" />)}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-3 cursor-pointer hover:bg-white/50 group transition-colors select-none"
+                      onClick={() => {
+                        if (sortColumn === 'status') setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                        else setSortColumn('status');
+                      }}
+                    >
+                      <div className="flex items-center gap-1">
+                        Status
+                        {sortColumn === 'status' && (sortOrder === 'desc' ? <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600" /> : <ChevronUp size={14} className="text-slate-400 group-hover:text-slate-600" />)}
+                      </div>
+                    </th>
                     <th className="px-6 py-3">Images</th>
                     <th className="px-6 py-3">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="text-sm text-slate-700 divide-y divide-slate-100">
+                <tbody className="text-sm text-slate-800 divide-y divide-white/20">
                   {filteredTrips.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan={9} className="px-6 py-12 text-center text-slate-600 font-medium font-sans">
                         No trips found matching "{searchQuery}"
                       </td>
                     </tr>
                   ) : (
                     filteredTrips.map(trip => (
-                    <tr key={trip.id} className={clsx("hover:bg-slate-50 transition-colors", checkedTrips.has(trip.id) && "bg-blue-50/30")}>
+                    <tr key={trip.id} className={clsx("hover:bg-white/40 transition-colors", checkedTrips.has(trip.id) && "bg-blue-50/50 backdrop-blur-md")}>
                       <td className="px-4 py-4 text-center">
                         <input 
                           type="checkbox"
@@ -640,7 +747,7 @@ export function TripsList() {
                         </div>
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-800">
-                        <span className="bg-slate-100 px-2 py-1 rounded text-xs font-mono border border-slate-200">{trip.vehicleNumber}</span>
+                        <span className="bg-white/50 px-2 py-1 rounded text-xs font-mono border border-white/60 shadow-sm">{trip.vehicleNumber}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-sm font-medium text-slate-700">{trip.purposeOfTravel || '-'}</span>
@@ -782,7 +889,7 @@ export function TripsList() {
                 </tbody>
               </table>
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-200 text-slate-400 text-[11px] italic">
+            <div className="p-4 bg-white/30 border-t border-white/40 text-slate-600 text-[11px] italic font-medium">
               Auto-sync active to Cloud Firestore
             </div>
           </div>

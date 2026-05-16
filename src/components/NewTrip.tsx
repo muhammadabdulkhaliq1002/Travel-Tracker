@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { collection, doc, setDoc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, getDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from './AuthProvider';
 import { compressImage } from '../lib/imageUtils';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Camera, Loader2, Image as ImageIcon, MapPin, Plus, Save, Edit2, X, Maximize2 } from 'lucide-react';
+import { ArrowLeft, Camera, Loader2, Image as ImageIcon, MapPin, Plus, Minus, Save, Edit2, X, Maximize2 } from 'lucide-react';
 import clsx from 'clsx';
 import { format } from 'date-fns';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
 interface TripForm {
   date: string;
@@ -36,6 +37,32 @@ export function NewTrip() {
   const [startLocation, setStartLocation] = useState<{lat: number, lng: number} | null>(null);
   const [endLocation, setEndLocation] = useState<{lat: number, lng: number} | null>(null);
   const [fetchingLocation, setFetchingLocation] = useState<'start' | 'end' | null>(null);
+  const [recentVehicles, setRecentVehicles] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchVehicles = async () => {
+      try {
+        const q = query(
+          collection(db, 'trips'),
+          where('userId', '==', user.uid),
+          orderBy('createdAt', 'desc'),
+          limit(20)
+        );
+        const snap = await getDocs(q);
+        const vehicles = new Set<string>();
+        snap.forEach(doc => {
+          if (doc.data().vehicleNumber) {
+            vehicles.add(doc.data().vehicleNumber);
+          }
+        });
+        setRecentVehicles(Array.from(vehicles));
+      } catch (err) {
+        console.error('Error fetching vehicles', err);
+      }
+    };
+    fetchVehicles();
+  }, [user]);
 
   const isEdit = !!id;
 
@@ -229,13 +256,13 @@ export function NewTrip() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <div className="sticky top-0 z-10 w-full shrink-0 flex flex-col shadow-sm">
-        <div className="bg-slate-900 text-slate-300 text-[10px] sm:text-xs font-bold py-1 px-4 sm:px-8 text-center tracking-widest uppercase">
+    <div className="min-h-screen flex flex-col font-sans">
+      <div className="sticky top-0 z-10 w-full shrink-0 flex flex-col shadow-sm backdrop-blur-md bg-white/40 border-b border-white/60">
+        <div className="bg-slate-900/80 backdrop-blur-md text-slate-300 text-[10px] sm:text-xs font-bold py-1 px-4 sm:px-8 text-center tracking-widest uppercase">
           Goodfarmer Food Concepts Private Limited
         </div>
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center px-4 sm:px-8">
-          <Link to="/" className="p-2 -ml-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition mr-2">
+        <header className="h-16 flex items-center px-4 sm:px-8">
+          <Link to="/" className="p-2 -ml-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-white/50 transition mr-2">
             <ArrowLeft size={20} />
           </Link>
           <h2 className="text-slate-800 font-semibold text-lg">Travel Tracker</h2>
@@ -250,29 +277,34 @@ export function NewTrip() {
           </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-lg mb-8 space-y-6">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xl p-4 sm:p-6 flex flex-col">
+            <div className="bg-white/40 backdrop-blur-xl rounded-2xl border border-white/60 shadow-xl p-4 sm:p-6 flex flex-col">
               <h3 className="text-slate-900 font-bold mb-5 flex items-center gap-2 text-lg">
                 {isEdit ? <Edit2 size={20} className="text-blue-600" /> : <Plus size={20} className="text-blue-600" />}
                 {isEdit ? 'Edit Trip Record' : 'New Trip Record'}
               </h3>
             
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Date</label>
-                  <input type="date" {...register('date', { required: true })} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                  <input type="date" {...register('date', { required: true })} className="w-full border border-white/60 rounded-lg p-2.5 bg-white/50 text-slate-800 text-sm focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 outline-none transition-colors" />
                 </div>
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Vehicle Reg.</label>
-                  <input type="text" placeholder="KA28X1167" {...register('vehicleNumber', { required: true })} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                  <input list="vehicles-list" type="text" placeholder="KA28X1167" {...register('vehicleNumber', { required: true })} className="w-full border border-white/60 rounded-lg p-2.5 bg-white/50 text-slate-800 text-sm uppercase focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 outline-none transition-colors" />
+                  <datalist id="vehicles-list">
+                    {recentVehicles.map(vehicle => (
+                      <option key={vehicle} value={vehicle} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">From</label>
                 <div className="relative">
-                  <input type="text" placeholder="Central Kitchen" {...register('travellingFrom', { required: true })} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition pr-10" />
-                  <button type="button" onClick={() => handleLocationFetch('start', 'travellingFrom')} disabled={fetchingLocation === 'start'} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Use current location">
+                  <input type="text" placeholder="Central Kitchen" {...register('travellingFrom', { required: true })} className="w-full border border-white/60 rounded-lg p-2.5 bg-white/50 text-slate-800 text-sm focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 outline-none transition-colors pr-10" />
+                  <button type="button" onClick={() => handleLocationFetch('start', 'travellingFrom')} disabled={fetchingLocation === 'start'} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-blue-600 hover:bg-white/60 rounded-md transition-colors" title="Use current location">
                     {fetchingLocation === 'start' ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
                   </button>
                 </div>
@@ -281,8 +313,8 @@ export function NewTrip() {
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">To</label>
                 <div className="relative">
-                  <input type="text" placeholder="Ulsoor" {...register('travellingTo', { required: true })} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition pr-10" />
-                  <button type="button" onClick={() => handleLocationFetch('end', 'travellingTo')} disabled={fetchingLocation === 'end'} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Use current location">
+                  <input type="text" placeholder="Ulsoor" {...register('travellingTo', { required: true })} className="w-full border border-white/60 rounded-lg p-2.5 bg-white/50 text-slate-800 text-sm focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 outline-none transition-colors pr-10" />
+                  <button type="button" onClick={() => handleLocationFetch('end', 'travellingTo')} disabled={fetchingLocation === 'end'} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-blue-600 hover:bg-white/60 rounded-md transition-colors" title="Use current location">
                     {fetchingLocation === 'end' ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
                   </button>
                 </div>
@@ -290,13 +322,13 @@ export function NewTrip() {
 
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Purpose of Travel</label>
-                <input type="text" placeholder="e.g. Client meeting" {...register('purposeOfTravel')} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                <input type="text" placeholder="e.g. Client meeting" {...register('purposeOfTravel')} className="w-full border border-white/60 rounded-lg p-2.5 bg-white/50 text-slate-800 text-sm focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 outline-none transition-colors" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Start Reading</label>
-                  <input type="number" {...register('startingOdometer', { required: true })} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                  <input type="number" {...register('startingOdometer', { required: true })} className="w-full border border-white/60 rounded-lg p-2.5 bg-white/50 text-slate-800 text-sm font-mono focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 outline-none transition-colors" />
                   <div className="mt-2 text-left">
                     {startLocation ? (
                        <div className="flex items-center text-[10px] text-green-600 font-medium">
@@ -313,7 +345,7 @@ export function NewTrip() {
                 </div>
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">End Reading</label>
-                  <input type="number" {...register('endingOdometer', { required: true })} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                  <input type="number" {...register('endingOdometer', { required: true })} className="w-full border border-white/60 rounded-lg p-2.5 bg-white/50 text-slate-800 text-sm font-mono focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 outline-none transition-colors" />
                   <div className="mt-2 text-left">
                     {endLocation ? (
                        <div className="flex items-center text-[10px] text-green-600 font-medium">
@@ -330,10 +362,10 @@ export function NewTrip() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Start Odo Snap</label>
-                  <label className="relative w-full rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center p-2 cursor-pointer hover:border-blue-500 transition group min-h-[120px] overflow-hidden">
+                  <label className="relative w-full rounded-lg border-2 border-dashed border-slate-400/50 bg-white/40 flex flex-col items-center justify-center p-2 cursor-pointer hover:border-blue-500/80 transition-colors group min-h-[120px] overflow-hidden">
                     {processingImage === 'start' ? (
                       <div className="flex flex-col items-center justify-center space-y-2 py-4">
                         <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
@@ -362,7 +394,7 @@ export function NewTrip() {
                 </div>
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">End Odo Snap</label>
-                  <label className="relative w-full rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center p-2 cursor-pointer hover:border-blue-500 transition group min-h-[120px] overflow-hidden">
+                  <label className="relative w-full rounded-lg border-2 border-dashed border-slate-400/50 bg-white/40 flex flex-col items-center justify-center p-2 cursor-pointer hover:border-blue-500/80 transition-colors group min-h-[120px] overflow-hidden">
                     {processingImage === 'end' ? (
                       <div className="flex flex-col items-center justify-center space-y-2 py-4">
                         <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
@@ -391,27 +423,27 @@ export function NewTrip() {
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-100 rounded-xl mt-4 space-y-4">
+              <div className="p-4 bg-white/40 backdrop-blur-sm border border-white/60 rounded-xl mt-4 space-y-4">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500 font-medium">Distance Travelled</span>
+                  <span className="text-slate-600 font-medium">Distance Travelled</span>
                   <span className="font-mono text-slate-800 font-bold">{distanceTravelled} km</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500 font-medium pt-1">Rate (₹/km)</span>
-                  <input type="number" step="0.1" {...register('perKmRate', { required: true })} className="w-20 border border-slate-200 rounded flex-shrink-0 p-1 text-sm bg-white text-right font-mono outline-none focus:ring-1 focus:ring-blue-500" />
+                  <span className="text-slate-600 font-medium pt-1">Rate (₹/km)</span>
+                  <input type="number" step="0.1" {...register('perKmRate', { required: true })} className="w-20 border border-white/60 rounded flex-shrink-0 p-1 text-sm bg-white text-right font-mono outline-none focus:ring-1 focus:ring-blue-500/50" />
                 </div>
-                <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
+                <div className="border-t border-white/60 pt-3 flex justify-between items-center">
                   <span className="text-sm font-bold text-slate-800">Total Amount</span>
                   <span className="text-lg font-bold text-blue-600 font-mono">₹{amount.toFixed(2)}</span>
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-slate-100">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Optional Details</h4>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4 pt-4 border-t border-white/60">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Optional Details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block text-blue-600">Status</label>
-                    <select {...register('status')} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition font-medium appearance-none">
+                    <select {...register('status')} className="w-full border border-white/60 rounded-lg p-2.5 bg-white/50 text-slate-800 text-sm focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 outline-none transition-colors font-medium appearance-none">
                       <option value="Pending">Pending</option>
                       <option value="Approved">Approved</option>
                       <option value="Rejected">Rejected</option>
@@ -419,18 +451,18 @@ export function NewTrip() {
                   </div>
                   <div>
                     <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Approver</label>
-                    <input type="text" placeholder="Ram Sir" {...register('approvedBy')} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                    <input type="text" placeholder="Ram Sir" {...register('approvedBy')} className="w-full border border-white/60 rounded-lg p-2.5 bg-white/50 text-slate-800 text-sm focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 outline-none transition-colors" />
                   </div>
                 </div>
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Remarks</label>
-                  <input type="text" placeholder="Optional notes" {...register('remarks')} className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                  <textarea placeholder="Optional notes" {...register('remarks')} rows={3} className="w-full border border-white/60 rounded-lg p-2.5 bg-white/50 text-slate-800 text-sm focus:bg-white/80 focus:ring-2 focus:ring-blue-500/50 outline-none transition-colors resize-y"></textarea>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 sm:relative sm:bg-transparent sm:border-0 sm:p-0 z-20">
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-xl border-t border-white/40 sm:relative sm:bg-transparent sm:backdrop-blur-none sm:border-0 sm:p-0 z-20">
             <button 
               type="submit" 
               disabled={submitting}
@@ -457,17 +489,41 @@ export function NewTrip() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/90 p-4 sm:p-8 animate-in fade-in" onClick={() => setPreviewModal(null)}>
           <button
             title="Close"
-            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
-            onClick={() => setPreviewModal(null)}
+            className="absolute z-[70] top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPreviewModal(null);
+            }}
           >
             <X size={24} />
           </button>
-          <img
-            src={previewModal}
-            alt="Odometer Preview"
-            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="relative w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <TransformWrapper
+              initialScale={1}
+              minScale={0.5}
+              maxScale={4}
+              centerOnInit
+            >
+              {({ zoomIn, zoomOut, resetTransform }) => (
+                <div className="relative w-full h-full flex items-center justify-center">
+                  <div className="absolute z-[70] bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/50 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                    <button type="button" onClick={() => zoomIn(0.5)} className="text-white hover:text-blue-400 p-1"><Plus size={20} /></button>
+                    <div className="h-4 w-px bg-white/20 mx-1"></div>
+                    <button type="button" onClick={() => zoomOut(0.5)} className="text-white hover:text-blue-400 p-1"><Minus size={20} /></button>
+                    <div className="h-4 w-px bg-white/20 mx-1"></div>
+                    <button type="button" onClick={() => resetTransform()} className="text-white hover:text-blue-400 text-xs font-bold uppercase tracking-wider px-2">Reset</button>
+                  </div>
+                  <TransformComponent wrapperClass="w-full h-full flex items-center justify-center" contentClass="flex items-center justify-center">
+                    <img
+                      src={previewModal}
+                      alt="Odometer Preview"
+                      className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                    />
+                  </TransformComponent>
+                </div>
+              )}
+            </TransformWrapper>
+          </div>
         </div>
       )}
     </div>
